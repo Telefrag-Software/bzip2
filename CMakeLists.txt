@@ -16,6 +16,7 @@ set(LT_AGE      0)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 include(Version)
 include(SymLink)
+include(CMakePackageConfigHelpers)
 
 set(BZ_VERSION ${PROJECT_VERSION})
 configure_file (
@@ -283,8 +284,13 @@ set(BZ2_SOURCES
 add_library(bz2_ObjLib OBJECT)
 target_sources(bz2_ObjLib
     PRIVATE   ${BZ2_SOURCES}
-    PUBLIC    ${CMAKE_CURRENT_SOURCE_DIR}/bzlib_private.h
-    INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/bzlib.h)
+)
+
+target_include_directories(bz2_ObjLib
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
 # Windows resource file
 set(BZ2_RES "")
@@ -298,13 +304,20 @@ if(WIN32)
 endif()
 
 if(ENABLE_SHARED_LIB)
+    list(APPEND TARGET_NAMES bz2)
+
     # The libbz2 shared library.
     add_library(bz2 SHARED ${BZ2_RES})
     target_sources(bz2
         PRIVATE   ${BZ2_SOURCES}
                   ${CMAKE_CURRENT_SOURCE_DIR}/libbz2.def
-        PUBLIC    ${CMAKE_CURRENT_SOURCE_DIR}/bzlib_private.h
-        INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/bzlib.h)
+    )
+
+    target_include_directories(bz2
+        INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
 
     # Always use '-fPIC'/'-fPIE' option for shared libraries.
     set_property(TARGET bz2 PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -315,6 +328,43 @@ if(ENABLE_SHARED_LIB)
     install(TARGETS bz2 DESTINATION ${CMAKE_INSTALL_LIBDIR})
     install(FILES bzlib.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+    set(CONFIG_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+    set(GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    set(VERSION_CONFIG "${GENERATED_DIR}/${PROJECT_NAME}ConfigVersion.cmake")
+    set(PROJECT_CONFIG "${GENERATED_DIR}/${PROJECT_NAME}Config.cmake")
+    set(TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets")
+    set(NAMESPACE "BZip2::")
+
+    write_basic_package_version_file(
+        "${VERSION_CONFIG}" COMPATIBILITY SameMajorVersion
+    )
+
+    configure_package_config_file(
+        "cmake/Config.cmake.in"
+        "${PROJECT_CONFIG}"
+        INSTALL_DESTINATION "${CONFIG_INSTALL_DIR}"
+    )
+
+    install(
+        TARGETS bz2
+        EXPORT "${TARGETS_EXPORT_NAME}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
+
+    install(
+        FILES "${PROJECT_CONFIG}" "${VERSION_CONFIG}"
+        DESTINATION "${CONFIG_INSTALL_DIR}"
+    )
+
+    install(
+        EXPORT "${TARGETS_EXPORT_NAME}"
+        NAMESPACE "${NAMESPACE}"
+        DESTINATION "${CONFIG_INSTALL_DIR}"
+    )
+
     if(USE_OLD_SONAME)
         # Hack to support the old libbz2.so.1.0 version by including an extra copy.
         # Technically the old SONAME is not libtool compatible.
@@ -324,8 +374,6 @@ if(ENABLE_SHARED_LIB)
             target_sources(bz2_old_soname
                 PRIVATE   ${BZ2_SOURCES}
                           ${CMAKE_CURRENT_SOURCE_DIR}/libbz2.def
-                PUBLIC    ${CMAKE_CURRENT_SOURCE_DIR}/bzlib_private.h
-                INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/bzlib.h
             )
             set_target_properties(bz2_old_soname PROPERTIES
                 COMPILE_FLAGS "${WARNCFLAGS}"
@@ -338,12 +386,19 @@ if(ENABLE_SHARED_LIB)
 endif()
 
 if(ENABLE_STATIC_LIB)
+    list(APPEND TARGET_NAMES bz2_static)
+
     # The libbz2 static library.
     add_library(bz2_static STATIC)
     target_sources(bz2_static
         PRIVATE     ${BZ2_SOURCES}
-        PUBLIC      ${CMAKE_CURRENT_SOURCE_DIR}/bzlib_private.h
-        INTERFACE   ${CMAKE_CURRENT_SOURCE_DIR}/bzlib.h)
+    )
+
+    target_include_directories(bz2_static
+        INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
 
     # Use '-fPIC'/'-fPIE' option for static libraries by default.
     # You may build with ENABLE_STATIC_LIB_IS_PIC=OFF to disable PIC for the static library.
@@ -359,6 +414,43 @@ if(ENABLE_STATIC_LIB)
     target_compile_definitions(bz2_static PUBLIC BZ2_STATICLIB)
     install(TARGETS bz2_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
     install(FILES bzlib.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    set(CONFIG_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+    set(GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    set(VERSION_CONFIG "${GENERATED_DIR}/${PROJECT_NAME}ConfigVersion.cmake")
+    set(PROJECT_CONFIG "${GENERATED_DIR}/${PROJECT_NAME}Config.cmake")
+    set(TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets")
+    set(NAMESPACE "BZip2::")
+
+    write_basic_package_version_file(
+        "${VERSION_CONFIG}" COMPATIBILITY SameMajorVersion
+    )
+
+    configure_package_config_file(
+        "cmake/Config.cmake.in"
+        "${PROJECT_CONFIG}"
+        INSTALL_DESTINATION "${CONFIG_INSTALL_DIR}"
+    )
+
+    install(
+        TARGETS bz2_static
+        EXPORT "${TARGETS_EXPORT_NAME}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    )
+
+    install(
+        FILES "${PROJECT_CONFIG}" "${VERSION_CONFIG}"
+        DESTINATION "${CONFIG_INSTALL_DIR}"
+    )
+
+    install(
+        EXPORT "${TARGETS_EXPORT_NAME}"
+        NAMESPACE "${NAMESPACE}"
+        DESTINATION "${CONFIG_INSTALL_DIR}"
+    )
 endif()
 
 if(ENABLE_APP)
